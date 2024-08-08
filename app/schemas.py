@@ -1,3 +1,6 @@
+from .util import str_to_datetime, verify_name
+from typing import Annotated, Literal
+from datetime import datetime, timezone, date
 from pydantic import (
     BaseModel,
     EmailStr,
@@ -6,9 +9,6 @@ from pydantic import (
     BeforeValidator,
     field_validator,
 )
-from util import str_to_datetime, verify_name
-from typing import Annotated, Literal
-from datetime import datetime, timezone, date
 
 
 class UserAssignInfo(BaseModel):

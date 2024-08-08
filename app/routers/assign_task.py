@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Body
-from database import db_session
+from ..database import db_session
 from sqlalchemy.orm import Session
-import util, models, schemas
-from authenticate import get_current_user
-
+from ..authenticate import get_current_user
+from ..models import Tasks, AssignUserTask, Projects, Users
+from ..schemas import TaskOut
+from ..util import create_new_item, get_all_items, get_item_by_id, is_user_allowed
 
 router = APIRouter(tags=["Task Assignment"])
 
@@ -19,11 +20,9 @@ def assign_multiple_users_to_a_task(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(db_session),
 ):
-    util.is_user_allowed(
-        user_role=current_user.get("role"), endpoint_allowed_role="admin"
-    )
-    task = util.get_item_by_id(task_id, db, models.Tasks, "task")
-    project = util.get_item_by_id(task.project_id, db, models.Projects, "project")
+    is_user_allowed(user_role=current_user.get("role"), endpoint_allowed_role="admin")
+    task = get_item_by_id(task_id, db, Tasks, "task")
+    project = get_item_by_id(task.project_id, db, Projects, "project")
     if current_user.get("id") != project.admin_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -37,7 +36,7 @@ def assign_multiple_users_to_a_task(
     guest = []
     for user_id in users_id:
         try:
-            user = util.get_item_by_id(user_id, db, models.Users, "user")
+            user = get_item_by_id(user_id, db, Users, "user")
             if user.role == "guest":
                 guest.append(user_id)
             else:
@@ -45,7 +44,7 @@ def assign_multiple_users_to_a_task(
         except:
             not_found.append(user_id)
     if found:
-        all_assignments = util.get_all_items(db, models.AssignUserTask)
+        all_assignments = get_all_items(db, AssignUserTask)
         specific_task_assignments = [
             assign for assign in all_assignments if assign.task_id == task_id
         ]
@@ -63,7 +62,7 @@ def assign_multiple_users_to_a_task(
                 already_added.append(user_id)
             else:
                 assignment_dict = {"task_id": task_id, "user_id": user_id}
-                _ = util.create_new_item(assignment_dict, db, models.AssignUserTask)
+                _ = create_new_item(assignment_dict, db, AssignUserTask)
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -87,7 +86,7 @@ def assign_multiple_users_to_a_task(
 
 @router.post(
     "/tasks/{task_id}/{user_id}",
-    response_model=schemas.TaskOut,
+    response_model=TaskOut,
     status_code=status.HTTP_201_CREATED,
     description="This endpoint allow the admin to assign a user to a task. This enpoint will return Exception Error if the input id is either invalid or belongs to a guest.",
 )
@@ -97,12 +96,10 @@ def assign_one_user_to_a_task(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(db_session),
 ):
-    util.is_user_allowed(
-        user_role=current_user.get("role"), endpoint_allowed_role="admin"
-    )
-    task = util.get_item_by_id(task_id, db, models.Tasks, "task")
-    user = util.get_item_by_id(user_id, db, models.Users, "user")
-    project = util.get_item_by_id(task.project_id, db, models.Projects, "project")
+    is_user_allowed(user_role=current_user.get("role"), endpoint_allowed_role="admin")
+    task = get_item_by_id(task_id, db, Tasks, "task")
+    user = get_item_by_id(user_id, db, Users, "user")
+    project = get_item_by_id(task.project_id, db, Projects, "project")
     if current_user.get("id") != project.admin_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -117,7 +114,7 @@ def assign_one_user_to_a_task(
                 "message": f"The user with id {user_id} is a guest, and cannot be assigned a task."
             },
         )
-    all_assignments = util.get_all_items(db, models.AssignUserTask)
+    all_assignments = get_all_items(db, AssignUserTask)
     specific_task_assignments = [
         assign for assign in all_assignments if assign.task_id == task_id
     ]
@@ -130,8 +127,8 @@ def assign_one_user_to_a_task(
                 },
             )
     assignment_dict = {"task_id": task_id, "user_id": user_id}
-    _ = util.create_new_item(assignment_dict, db, models.AssignUserTask)
-    updated_task = util.get_item_by_id(task_id, db, models.Tasks, "task")
+    _ = create_new_item(assignment_dict, db, AssignUserTask)
+    updated_task = get_item_by_id(task_id, db, Tasks, "task")
     return updated_task
 
 
@@ -146,12 +143,10 @@ def remove_user_from_task(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(db_session),
 ):
-    util.is_user_allowed(
-        user_role=current_user.get("role"), endpoint_allowed_role="admin"
-    )
-    task = util.get_item_by_id(task_id, db, models.Tasks, "task")
-    _ = util.get_item_by_id(user_id, db, models.Users, "user")
-    project = util.get_item_by_id(task.project_id, db, models.Projects, "project")
+    is_user_allowed(user_role=current_user.get("role"), endpoint_allowed_role="admin")
+    task = get_item_by_id(task_id, db, Tasks, "task")
+    _ = get_item_by_id(user_id, db, Users, "user")
+    project = get_item_by_id(task.project_id, db, Projects, "project")
     if current_user.get("id") != project.admin_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -160,10 +155,9 @@ def remove_user_from_task(
             },
         )
     assignment = (
-        db.query(models.AssignUserTask)
+        db.query(AssignUserTask)
         .filter(
-            (models.AssignUserTask.task_id == task_id)
-            & (models.AssignUserTask.user_id == user_id)
+            (AssignUserTask.task_id == task_id) & (AssignUserTask.user_id == user_id)
         )
         .first()
     )

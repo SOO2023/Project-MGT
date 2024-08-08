@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from util import home_page
-from routers import auth, projects, users, tasks, assign_task, task_progress
-from database import Base, engine
+from .util import home_page
+from .routers import auth, projects, users, tasks, assign_task, task_progress
+from .database import Base, engine
 
 
 Base.metadata.create_all(engine)
 
-with open("./description.txt", "r") as f:
+with open("./app/description.txt", "r") as f:
     description = f.read()
 
 app = FastAPI(

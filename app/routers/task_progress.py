@@ -1,26 +1,28 @@
 from fastapi import APIRouter, Depends, status, HTTPException
-import models, schemas, util
-from database import db_session
+from ..database import db_session
 from sqlalchemy.orm import Session
-from authenticate import get_current_user
+from ..authenticate import get_current_user
+from ..models import TaskProgressInfo, Tasks, Projects
+from ..schemas import TaskOut, ProgressIn
+from ..util import create_new_item, get_item_by_id, update_item, delete_item
 
 router = APIRouter(prefix="/updates", tags=["Task Progress Update"])
 
 
 @router.post(
     "/tasks/{task_id}",
-    response_model=schemas.TaskOut,
+    response_model=TaskOut,
     status_code=status.HTTP_201_CREATED,
     description="This endpoint allows the task creator and all assigned users to update and comment on the task progress.",
 )
 def add_task_progress_update(
     task_id: int,
-    update: schemas.ProgressIn,
+    update: ProgressIn,
     db: Session = Depends(db_session),
     user: dict = Depends(get_current_user),
 ):
-    task = util.get_item_by_id(task_id, db, models.Tasks, "task")
-    project = util.get_item_by_id(task.project_id, db, models.Projects, "project")
+    task = get_item_by_id(task_id, db, Tasks, "task")
+    project = get_item_by_id(task.project_id, db, Projects, "project")
     assigned_users = task.assigned_users
     if not assigned_users:
         if project.admin_id != user.get("id"):
@@ -41,33 +43,33 @@ def add_task_progress_update(
         )
     progress_dict = update.model_dump()
     progress_dict.update({"user_id": user.get("id"), "task_id": task_id})
-    _ = util.create_new_item(progress_dict, db, models.TaskProgressInfo)
-    task_updated = util.get_item_by_id(task_id, db, models.Tasks, "task")
+    _ = create_new_item(progress_dict, db, TaskProgressInfo)
+    task_updated = get_item_by_id(task_id, db, Tasks, "task")
     return task_updated
 
 
 @router.put(
     "/{progress_id}",
-    response_model=schemas.TaskOut,
+    response_model=TaskOut,
     status_code=status.HTTP_201_CREATED,
     description="This endpoint allows assigned users to edit their previous progress update.",
 )
 def edit_task_progress_update(
     progress_id: int,
-    update: schemas.ProgressIn,
+    update: ProgressIn,
     db: Session = Depends(db_session),
     user: dict = Depends(get_current_user),
 ):
-    progress_update = util.get_item_by_id(
-        progress_id, db, models.TaskProgressInfo, "task_progress_update"
+    progress_update = get_item_by_id(
+        progress_id, db, TaskProgressInfo, "task_progress_update"
     )
     if progress_update.user_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"message": "You cannot edit this task progress update."},
         )
-    _ = util.update_item(progress_id, update.model_dump(), db, models.TaskProgressInfo)
-    task_update = util.get_item_by_id(progress_update.task_id, db, models.Tasks, "task")
+    _ = update_item(progress_id, update.model_dump(), db, TaskProgressInfo)
+    task_update = get_item_by_id(progress_update.task_id, db, Tasks, "task")
     return task_update
 
 
@@ -81,12 +83,12 @@ def delete_task_progress_update(
     db: Session = Depends(db_session),
     user: dict = Depends(get_current_user),
 ):
-    progress_update = util.get_item_by_id(
-        progress_id, db, models.TaskProgressInfo, "task_progress_update"
+    progress_update = get_item_by_id(
+        progress_id, db, TaskProgressInfo, "task_progress_update"
     )
     if progress_update.user_id != user.get("id"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"message": "You cannot delete this task progress update."},
         )
-    util.delete_item(progress_id, db, models.TaskProgressInfo, "task_progress_update")
+    delete_item(progress_id, db, TaskProgressInfo, "task_progress_update")

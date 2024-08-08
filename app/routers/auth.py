@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
-from authenticate import JWT, verify_user
-from database import db_session
+from ..authenticate import JWT, verify_user
+from ..database import db_session
 from sqlalchemy.orm import Session
 
 
