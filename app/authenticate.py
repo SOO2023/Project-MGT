@@ -29,16 +29,12 @@ class JWT:
         self.ALGORITHM = os.getenv("ALGORITHM")
 
     def jwt_encode(self, payload: dict) -> str:
-        encoded_str = jwt.encode(
-            payload=payload, key=self.SECRET, algorithm=self.ALGORITHM
-        )
+        encoded_str = jwt.encode(payload, self.SECRET, self.ALGORITHM)
         return encoded_str
 
     def jwt_decode(self, token: str) -> dict:
         try:
-            payload = jwt.decode(
-                token, self.SECRET, [self.ALGORITHM]
-            )
+            payload = jwt.decode(token, self.SECRET, [self.ALGORITHM])
         except Exception as error:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -53,8 +49,7 @@ def verify_user(email: str, password: str, db: Session) -> Users:
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Invalid credentials, check the username and password."},
+            detail={"message": "Invalid credentials, check the username and password."},
             headers={"WWW-Authenticate": "Bearer"},
         )
     hashed_password = user.password
@@ -63,8 +58,7 @@ def verify_user(email: str, password: str, db: Session) -> Users:
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Invalid credentials, check the username and password."},
+            detail={"message": "Invalid credentials, check the username and password."},
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
@@ -75,8 +69,7 @@ def get_current_user(token: str = Depends(oauth_scheme)) -> dict:
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Invalid credentials, check the username and password."},
+            detail={"message": "Invalid credentials, check the username and password."},
             headers={"WWW-Authenticate": "Bearer"},
         )
     return payload
